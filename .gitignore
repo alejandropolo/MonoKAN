@@ -1,0 +1,21 @@
+*.pt
+*.pyc
+
+## Discar everythin from Data folder but the files that are inside the folder Processed_Data
+!/Data/Processed_Data/*
+./logs
+/logs/*
+*.png
+Scripts/__pycache__/*
+
+## Ignore Notebook_backup folder
+Notebook_backup/*
+Scripts_backup/*
+figures/*
+Notebooks/figures/*
+Scripts/__pycache__/*
+Notebooks/model_ckpt/best_model
+Notebooks/data/
+
+## Ignore files that start with grid_search and ends in csv
+grid_search*.csv

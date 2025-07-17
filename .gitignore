@@ -16,6 +16,8 @@ Notebooks/figures/*
 Scripts/__pycache__/*
 Notebooks/model_ckpt/best_model
 Notebooks/data/
+# 
+.ipynb_checkpoints/
 
 ## Ignore files that start with grid_search and ends in csv
 grid_search*.csv

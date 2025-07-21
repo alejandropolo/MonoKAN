@@ -240,7 +240,7 @@ def count_parameters(model: nn.Module) -> int:
     int: The total number of parameters in the model.
     """
     #return sum(p.numel() for p in model.parameters())
-    pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad and p.grad is not None)
     return pytorch_total_params
 
 def add_symbolic(name, fun):

@@ -1,81 +1,81 @@
 import torch
 # Hermite Basis Functions
-def hermite_basis_old(x, x0, x1):
-    """
-    Calculate the Hermite basis functions for a given value x.
+# def hermite_basis_old(x, x0, x1):
+#     """
+#     Calculate the Hermite basis functions for a given value x.
 
-    The Hermite basis functions are used in interpolation and approximation
-    theory. They provide a way to interpolate between two points, x0 and x1,
-    with not only the function values at these points but also the derivatives
-    considered. This function returns the four Hermite basis functions, which
-    are essential for cubic Hermite spline interpolation.
+#     The Hermite basis functions are used in interpolation and approximation
+#     theory. They provide a way to interpolate between two points, x0 and x1,
+#     with not only the function values at these points but also the derivatives
+#     considered. This function returns the four Hermite basis functions, which
+#     are essential for cubic Hermite spline interpolation.
 
-    Parameters:
-    - x (float): The point at which to evaluate the Hermite basis functions.
-    - x0 (float): The starting point of the interval.
-    - x1 (float): The ending point of the interval.
+#     Parameters:
+#     - x (float): The point at which to evaluate the Hermite basis functions.
+#     - x0 (float): The starting point of the interval.
+#     - x1 (float): The ending point of the interval.
 
-    Returns:
-    - h00 (float): The first Hermite basis function value at x.
-    - h10 (float): The second Hermite basis function value at x, related to the derivative at x0.
-    - h01 (float): The third Hermite basis function value at x, related to the function value at x1.
-    - h11 (float): The fourth Hermite basis function value at x, related to the derivative at x1.
+#     Returns:
+#     - h00 (float): The first Hermite basis function value at x.
+#     - h10 (float): The second Hermite basis function value at x, related to the derivative at x0.
+#     - h01 (float): The third Hermite basis function value at x, related to the function value at x1.
+#     - h11 (float): The fourth Hermite basis function value at x, related to the derivative at x1.
 
-    The basis functions are defined as follows:
-    - h00: Controls the function value at x0.
-    - h10: Controls the derivative at x0.
-    - h01: Controls the function value at x1.
-    - h11: Controls the derivative at x1.
+#     The basis functions are defined as follows:
+#     - h00: Controls the function value at x0.
+#     - h10: Controls the derivative at x0.
+#     - h01: Controls the function value at x1.
+#     - h11: Controls the derivative at x1.
 
-    These basis functions ensure that the spline passes through the end points
-    (x0, x1) with specified derivatives at these points, providing a smooth
-    transition between segments of the spline.
-    """
-    h = x1 - x0  # Interval length
-    t = (x - x0) / h  # Normalized position within the interval
-    # Hermite basis functions
-    h00 = (1 + 2*t) * (1 - t)**2
-    h10 = t * (1 - t)**2
-    h01 = t**2 * (3 - 2*t)
-    h11 = t**2 * (t - 1)
-    return h00, h10, h01, h11
+#     These basis functions ensure that the spline passes through the end points
+#     (x0, x1) with specified derivatives at these points, providing a smooth
+#     transition between segments of the spline.
+#     """
+#     h = x1 - x0  # Interval length
+#     t = (x - x0) / h  # Normalized position within the interval
+#     # Hermite basis functions
+#     h00 = (1 + 2*t) * (1 - t)**2
+#     h10 = t * (1 - t)**2
+#     h01 = t**2 * (3 - 2*t)
+#     h11 = t**2 * (t - 1)
+#     return h00, h10, h01, h11
 
-def H_batch_old(x, grid, coef, device='cpu'):
-    x = x.to(device)
-    grid = grid.to(device)
-    coef = coef.to(device)
+# def H_batch_old(x, grid, coef, device='cpu'):
+#     x = x.to(device)
+#     grid = grid.to(device)
+#     coef = coef.to(device)
 
-    num_splines, _ = x.shape
-    num_intervals = grid.shape[1] - 1
+#     num_splines, _ = x.shape
+#     num_intervals = grid.shape[1] - 1
 
-    y_eval = torch.zeros_like(x)
+#     y_eval = torch.zeros_like(x)
     
-    for spline_idx in range(num_splines):
-        try: 
-            for i in range(num_intervals):
-                x0 = grid[spline_idx, i]
-                x1 = grid[spline_idx, i + 1]
-                mask = (x[spline_idx] >= x0) & (x[spline_idx] <= x1)
-                h00, h10, h01, h11 = hermite_basis(x[spline_idx][mask], x0, x1)
+#     for spline_idx in range(num_splines):
+#         try: 
+#             for i in range(num_intervals):
+#                 x0 = grid[spline_idx, i]
+#                 x1 = grid[spline_idx, i + 1]
+#                 mask = (x[spline_idx] >= x0) & (x[spline_idx] <= x1)
+#                 h00, h10, h01, h11 = hermite_basis(x[spline_idx][mask], x0, x1)
 
-                y0 = coef[spline_idx, i, 0]
-                dy0 = coef[spline_idx, i, 1]
-                y1 = coef[spline_idx, i + 1, 0]
-                dy1 = coef[spline_idx, i + 1, 1]
+#                 y0 = coef[spline_idx, i, 0]
+#                 dy0 = coef[spline_idx, i, 1]
+#                 y1 = coef[spline_idx, i + 1, 0]
+#                 dy1 = coef[spline_idx, i + 1, 1]
 
-                y_eval[spline_idx][mask] = y0 * h00 + dy0 * (x1 - x0) * h10 + y1 * h01 + dy1 * (x1 - x0) * h11
-        except:
-            print('ok')
+#                 y_eval[spline_idx][mask] = y0 * h00 + dy0 * (x1 - x0) * h10 + y1 * h01 + dy1 * (x1 - x0) * h11
+#         except:
+#             print('ok')
 
-        # Linear extrapolation
-        slope_start = coef[spline_idx, 0, 1]
-        slope_end = coef[spline_idx, -1, 1]
-        mask_start = x[spline_idx] < grid[spline_idx, 0]
-        mask_end = x[spline_idx] > grid[spline_idx, -1]
-        y_eval[spline_idx][mask_start] = coef[spline_idx, 0, 0] + slope_start * (x[spline_idx][mask_start] - grid[spline_idx, 0])
-        y_eval[spline_idx][mask_end] = coef[spline_idx, -1, 0] + slope_end * (x[spline_idx][mask_end] - grid[spline_idx, -1])
+#         # Linear extrapolation
+#         slope_start = coef[spline_idx, 0, 1]
+#         slope_end = coef[spline_idx, -1, 1]
+#         mask_start = x[spline_idx] < grid[spline_idx, 0]
+#         mask_end = x[spline_idx] > grid[spline_idx, -1]
+#         y_eval[spline_idx][mask_start] = coef[spline_idx, 0, 0] + slope_start * (x[spline_idx][mask_start] - grid[spline_idx, 0])
+#         y_eval[spline_idx][mask_end] = coef[spline_idx, -1, 0] + slope_end * (x[spline_idx][mask_end] - grid[spline_idx, -1])
 
-    return y_eval
+#     return y_eval
 
 def hermite_basis(t):
     """
@@ -137,6 +137,66 @@ def H_batch(x, grid, coef, device='cpu'):
 
     return y_eval
 
+def H_batch_vectorized(x, grid, coef, device='cpu'):
+    """
+    Optimized batch evaluation of cubic Hermite splines without Python loops.
+    """
+    # Move to device
+    x = x.to(device)
+    grid = grid.to(device)
+    coef = coef.to(device)
+
+    B, N = x.shape
+    # Number of grid points per spline
+    M = grid.shape[1]
+
+    # Determine interval indices by counting grid <= x
+    # shape comparisons: grid [B, M] -> [B, M, 1], x [B, N] -> [B, 1, N]
+    mask = (x.unsqueeze(1) >= grid.unsqueeze(2))  # [B, M, N]
+    idx = mask.sum(dim=1) - 1                    # [B, N]
+    idx = idx.clamp(min=0, max=M-2)
+
+    # Gather grid boundaries
+    idx_right = idx + 1
+    x0 = grid.gather(1, idx)                    # [B, N]
+    x1 = grid.gather(1, idx_right)
+    diff = (x1 - x0)
+    t = (x - x0) / diff
+
+    # Compute Hermite basis
+    h00, h10, h01, h11 = hermite_basis(t)
+
+    # Gather coefficients
+    y0  = coef[:, :, 0].gather(1, idx)          # [B, N]
+    dy0 = coef[:, :, 1].gather(1, idx)
+    y1  = coef[:, :, 0].gather(1, idx_right)
+    dy1 = coef[:, :, 1].gather(1, idx_right)
+
+    # Evaluate spline
+    y_eval = y0 * h00 + dy0 * diff * h10 + y1 * h01 + dy1 * diff * h11
+
+    # Linear extrapolation for out-of-bounds
+    start_slope = coef[:, 0, 1].unsqueeze(1)    # [B,1]
+    end_slope   = coef[:, -1, 1].unsqueeze(1)
+    start_val   = coef[:, 0, 0].unsqueeze(1)
+    end_val     = coef[:, -1, 0].unsqueeze(1)
+
+    left_mask  = x < grid[:, [0]]
+    right_mask = x > grid[:, [-1]]
+
+    y_eval = torch.where(
+        left_mask,
+        start_val + start_slope * (x - grid[:, [0]]),
+        y_eval
+    )
+    y_eval = torch.where(
+        right_mask,
+        end_val + end_slope * (x - grid[:, [-1]]),
+        y_eval
+    )
+
+    return y_eval
+
 
 
 
@@ -178,7 +238,7 @@ def coef2curve_hermite(x_eval, grid, coef, device="cpu"):
     
     ## TODO: ROUND TO AVOID FLOATING POINT ERRORS
     # Evaluate the Hermite curves using the Hermite basis function
-    y_eval = H_batch(x_eval, grid, coef, device=device)
+    y_eval = H_batch_vectorized(x_eval, grid, coef, device=device)
     
     return y_eval
 

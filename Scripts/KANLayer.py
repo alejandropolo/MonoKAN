@@ -173,6 +173,7 @@ class KANLayer(nn.Module):
         '''
         batch = x.shape[0]
         # x: shape (batch, in_dim) => shape (size, batch) (size = out_dim * in_dim)
+        assert x.device == self.device, f"Input x is on {x.device}, but expected {self.device}"
         x = torch.einsum('ij,k->ikj', x, torch.ones(self.out_dim, device=self.device)).reshape(batch, self.size).permute(1, 0)
         ## Preact is the input replicated to the size of the number of neurons
         preacts = x.permute(1, 0).clone().reshape(batch, self.out_dim, self.in_dim)

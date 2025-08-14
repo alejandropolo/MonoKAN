@@ -1209,6 +1209,8 @@ class KAN(nn.Module):
         >>> model.train(dataset, opt='LBFGS', steps=50, lamb=0.01);
         >>> model.plot()
         '''
+        if device is None or isinstance(device, str):
+            device = next(self.parameters()).device
 
         def reg(acts_scale):
 

@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 from sklearn.linear_model import Ridge
+from sklearn.model_selection import train_test_split
 
 mono_list = [50, 51, 52, 53, 55, 56, 57, 58]
 
@@ -128,52 +129,59 @@ def load_data(path,get_categorical_info=True):
         return X_train, y_train, X_test, y_test
     
 def load_data_blog(file_path,ridged,get_categorical_info=False):
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     X_train, y_train, X_test, y_test = load_data(path ='../data/Preprocessed_Data/Blog/',get_categorical_info=False)
     original_X_train = X_train.copy()
     original_X_test = X_test.copy()
 
-
     if ridged:
         print('Ridge Regression')
         model = Ridge()
-        model.fit(
-            X_train, y_train,
-        )
+        model.fit(X_train, y_train)
         rmse = np.sqrt(np.mean((model.predict(X_test) - y_test) ** 2))
         important_feature_idxs = np.argsort(model.coef_)[::-1][:20]
 
         X_train = X_train[:, important_feature_idxs]
         X_test = X_test[:, important_feature_idxs]
 
-    X_train_tensor = torch.tensor(X_train, dtype=torch.float32).to(device)
-    y_train_tensor = torch.tensor(y_train, dtype=torch.float32).view(-1, 1).to(device)
+    # Split training data into training and validation sets
+    X_train_split, X_val_split, y_train_split, y_val_split = train_test_split(X_train, y_train, test_size=0.2, random_state=0)
+
+    # Convert to tensors
+    X_train_tensor = torch.tensor(X_train_split, dtype=torch.float32).to(device)
+    X_val_tensor = torch.tensor(X_val_split, dtype=torch.float32).to(device)
     X_test_tensor = torch.tensor(X_test, dtype=torch.float32).to(device)
+    y_train_tensor = torch.tensor(y_train_split, dtype=torch.float32).view(-1, 1).to(device)
+    y_val_tensor = torch.tensor(y_val_split, dtype=torch.float32).view(-1, 1).to(device)
     y_test_tensor = torch.tensor(y_test, dtype=torch.float32).view(-1, 1).to(device)
 
+    # Normalize using training set statistics
     mean = X_train_tensor.mean(0)
     std = X_train_tensor.std(0)
     X_train_tensor = (X_train_tensor - mean) / std
+    X_val_tensor = (X_val_tensor - mean) / std
     X_test_tensor = (X_test_tensor - mean) / std
 
-    ## Print number of instances in train_data and test_data
+    # Print number of instances in train_data, val_data, and test_data
     print('Number of instances in train_data:', X_train_tensor.shape)
+    print('Number of instances in val_data:', X_val_tensor.shape)
     print('Number of instances in test_data:', X_test_tensor.shape)
-
 
     n_var = X_train_tensor.shape[1]
 
+    # Create dataset dictionary
     dataset = dict()
     dataset['train_input'] = X_train_tensor
     dataset['train_label'] = y_train_tensor
+    dataset['val_input'] = X_val_tensor
+    dataset['val_label'] = y_val_tensor
     dataset['test_input'] = X_test_tensor
     dataset['test_label'] = y_test_tensor
 
-    monotone_constraints = np.array(
-    [1 if i in mono_list else 0 for i in range(original_X_train.shape[1])])
+    monotone_constraints = np.array([1 if i in mono_list else 0 for i in range(original_X_train.shape[1])])
     if ridged:
         monotone_constraints = monotone_constraints[important_feature_idxs]
     mono_vars = {i: value for i, value in enumerate(monotone_constraints)}
     classification = False
-    
-    return X_train_tensor, X_test_tensor, y_train_tensor, y_test_tensor, dataset, mono_vars, classification
+
+    return X_train_tensor, X_test_tensor, X_val_tensor, y_train_tensor, y_test_tensor, y_val_tensor, dataset, mono_vars, classification

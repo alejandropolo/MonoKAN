@@ -14,6 +14,7 @@ from tqdm import tqdm
 import random
 import copy
 from sklearn.metrics import accuracy_score
+import datetime
 
 
 
@@ -1212,6 +1213,9 @@ class KAN(nn.Module):
         if device is None or isinstance(device, str):
             device = next(self.parameters()).device
 
+        # Generate a timestamp for unique model saving
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
         def reg(acts_scale):
 
             def nonlinear(x, th=small_mag_threshold, factor=small_reg_factor):
@@ -1357,15 +1361,15 @@ class KAN(nn.Module):
                         best_val_loss = metric
                     elif early_stopping_metric == 'accuracy':
                         best_val_accuracy = metric
-                    self.save_ckpt('best_model')
+                    self.save_ckpt(f'best_model_{timestamp}')
                     patience_counter = 0
                 else:
                     patience_counter += 1
                     #print('Patience counter: ', patience_counter)
                     if patience_counter >= patience:
                         print('Early stopping')
-                        ## Load best model
-                        self.load_ckpt('best_model')
+                        # Load best model
+                        self.load_ckpt(f'best_model_{timestamp}')
                         break
 
                 if save_fig and _ % save_fig_freq == 0:
@@ -1374,7 +1378,7 @@ class KAN(nn.Module):
                     plt.close()
 
         ## Load Best model
-        self.load_ckpt('best_model')
+        self.load_ckpt(f'best_model_{timestamp}')
 
         ## Save results in the class
         self.results = results

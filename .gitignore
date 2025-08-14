@@ -21,3 +21,5 @@ Notebooks/data/
 
 ## Ignore files that start with grid_search and ends in csv
 grid_search*.csv
+
+/Notebooks/Notebooks_Trial/*

@@ -14,24 +14,30 @@ def load_data_auto(file_path):
     X = torch.tensor(X.astype(float), dtype=torch.float32)
     Y = torch.tensor(Y.astype(float), dtype=torch.float32).view(-1, 1)
     
-    # X = (X - X.mean(0)) / X.std(0)
-    
-    X_train_tensor, X_test_tensor, y_train_tensor, y_test_tensor = train_test_split(X, Y, test_size=0.2, random_state=0)
+    # Split into train+validation and test sets
+    X_train_val_tensor, X_test_tensor, y_train_val_tensor, y_test_tensor = train_test_split(X, Y, test_size=0.2, random_state=0)
 
+    # Split train+validation into training and validation sets
+    X_train_tensor, X_val_tensor, y_train_tensor, y_val_tensor = train_test_split(X_train_val_tensor, y_train_val_tensor, test_size=0.2, random_state=0)
+
+    # Normalize using training set statistics
     X_tr_mean = X_train_tensor.mean(0)
     X_tr_std = X_train_tensor.std(0)
-    X_train_tensor = (X_train_tensor-X_tr_mean)/X_tr_std
-    X_test_tensor = (X_test_tensor-X_tr_mean)/X_tr_std
-    
+    X_train_tensor = (X_train_tensor - X_tr_mean) / X_tr_std
+    X_val_tensor = (X_val_tensor - X_tr_mean) / X_tr_std
+    X_test_tensor = (X_test_tensor - X_tr_mean) / X_tr_std
+
+    # Create dataset dictionary
     dataset = {
         'train_input': X_train_tensor,
         'train_label': y_train_tensor,
+        'val_input': X_val_tensor,
+        'val_label': y_val_tensor,
         'test_input': X_test_tensor,
         'test_label': y_test_tensor
     }
 
-    mono_vars = {0:0,1:-1,2:-1,3:-1,4:0,5:0,6:0} ## AUTOMPG
+    mono_vars = {0: 0, 1: -1, 2: -1, 3: -1, 4: 0, 5: 0, 6: 0}  # AUTOMPG
     classification = False
     
-    return X_train_tensor, X_test_tensor, y_train_tensor, y_test_tensor, dataset, mono_vars, classification
-    
+    return X_train_tensor, X_test_tensor, X_val_tensor, y_train_tensor, y_test_tensor, y_val_tensor, dataset, mono_vars, classification

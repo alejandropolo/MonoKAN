@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 import torch
+from sklearn.model_selection import train_test_split
 
 mono_list = [0, 1, 2, 3]
 
@@ -141,30 +142,43 @@ def load_data(path, get_categorical_info=True):
 
 ## ADDED FUNCTION TO LOAD DATA IN KAN FORMAT
 
-def load_data_compas(file_path,get_categorical_info=False):
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
-    X_train, y_train, X_test, y_test = load_data(path =file_path,get_categorical_info=False)
-    
-    X_train_tensor = torch.tensor(X_train).float().to(device)
+def load_data_compas(file_path, get_categorical_info=False):
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    # Load data
+    X_train, y_train, X_test, y_test = load_data(path=file_path, get_categorical_info=False)
+
+    # Split training data into training and validation sets
+    X_train_split, X_val_split, y_train_split, y_val_split = train_test_split(X_train, y_train, test_size=0.2, random_state=0)
+
+    # Convert to tensors
+    X_train_tensor = torch.tensor(X_train_split).float().to(device)
+    X_val_tensor = torch.tensor(X_val_split).float().to(device)
     X_test_tensor = torch.tensor(X_test).float().to(device)
-    y_train_tensor = torch.tensor(y_train).float().unsqueeze(1).to(device)
+    y_train_tensor = torch.tensor(y_train_split).float().unsqueeze(1).to(device)
+    y_val_tensor = torch.tensor(y_val_split).float().unsqueeze(1).to(device)
     y_test_tensor = torch.tensor(y_test).float().unsqueeze(1).to(device)
-    
+
+    # Normalize using training set statistics
     mean = X_train_tensor.mean(0)
     std = X_train_tensor.std(0)
     X_train_tensor = (X_train_tensor - mean) / std
+    X_val_tensor = (X_val_tensor - mean) / std
     X_test_tensor = (X_test_tensor - mean) / std
-    
-    ## Print number of instances in train_data and test_data
+
+    # Print number of instances in train_data, val_data, and test_data
     print('Number of instances in train_data:', X_train_tensor.shape)
+    print('Number of instances in val_data:', X_val_tensor.shape)
     print('Number of instances in test_data:', X_test_tensor.shape)
-    
-    
+
     n_var = X_train_tensor.shape[1]
-    
+
+    # Create dataset dictionary
     dataset = dict()
     dataset['train_input'] = X_train_tensor
     dataset['train_label'] = y_train_tensor
+    dataset['val_input'] = X_val_tensor
+    dataset['val_label'] = y_val_tensor
     dataset['test_input'] = X_test_tensor
     dataset['test_label'] = y_test_tensor
 
@@ -172,5 +186,5 @@ def load_data_compas(file_path,get_categorical_info=False):
     mono_vars = {i: value for i, value in enumerate(monotone_constraints)}
     classification = True
 
-    return X_train_tensor, X_test_tensor, y_train_tensor, y_test_tensor, dataset, mono_vars, classification
+    return X_train_tensor, X_test_tensor, X_val_tensor, y_train_tensor, y_test_tensor, y_val_tensor, dataset, mono_vars, classification
 

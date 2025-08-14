@@ -1158,7 +1158,7 @@ class KAN(nn.Module):
         Args:
         -----
             dataset : dic
-                contains dataset['train_input'], dataset['train_label'], dataset['test_input'], dataset['test_label']
+                contains dataset['train_input'], dataset['train_label'], dataset['val_input'], dataset['val_label']
             opt : str
                 "LBFGS" or "Adam"
             steps : int
@@ -1196,7 +1196,7 @@ class KAN(nn.Module):
         --------
             results : dic
                 results['train_loss'], 1D array of training losses (RMSE)
-                results['test_loss'], 1D array of test losses (RMSE)
+                results['val_loss'], 1D array of val losses (RMSE)
                 results['reg'], 1D array of regularization
 
         Example
@@ -1252,7 +1252,7 @@ class KAN(nn.Module):
 
         results = {}
         results['train_loss'] = []
-        results['test_loss'] = []
+        results['val_loss'] = []
         results['reg'] = []
         if metrics != None:
             for i in range(len(metrics)):
@@ -1260,10 +1260,10 @@ class KAN(nn.Module):
 
         if batch == -1 or batch > dataset['train_input'].shape[0]:
             batch_size = dataset['train_input'].shape[0]
-            batch_size_test = dataset['test_input'].shape[0]
+            batch_size_val = dataset['val_input'].shape[0]
         else:
             batch_size = batch
-            batch_size_test = dataset['test_input'].shape[0]
+            batch_size_val = dataset['val_input'].shape[0]
 
         global train_loss, reg_
 
@@ -1286,14 +1286,14 @@ class KAN(nn.Module):
                 os.makedirs(img_folder)
         
         # Initialize early stopping
-        best_test_loss = float('inf')
-        best_test_accuracy = 0
+        best_val_loss = float('inf')
+        best_val_accuracy = 0
         patience_counter = 0
 
         for _ in pbar:
 
             train_id = np.random.choice(dataset['train_input'].shape[0], batch_size, replace=False)
-            test_id = np.random.choice(dataset['test_input'].shape[0], batch_size_test, replace=False)
+            val_id = np.random.choice(dataset['val_input'].shape[0], batch_size_val, replace=False)
 
             if _ % grid_update_freq == 0 and _ < stop_grid_update_step and update_grid:
                 self.update_grid_from_samples(dataset['train_input'][train_id].to(device))
@@ -1324,37 +1324,37 @@ class KAN(nn.Module):
                     # self.apply_constraints_hermite(monotonic_vars=monotonic_vars)
                 elif monotonic and not self.hermite:
                     raise ValueError("Monotonicity constraints are only available for Hermite splines.")
+
             with torch.no_grad():
-                test_loss = loss_fn_eval(self.forward(dataset['test_input'][test_id].to(device)), dataset['test_label'][test_id].to(device))
+                val_loss = loss_fn_eval(self.forward(dataset['val_input'][val_id].to(device)), dataset['val_label'][val_id].to(device))
 
                 if _ % log == 0:
-                    #pbar.set_description("train loss: %.2e | test loss: %.2e | reg: %.2e " % (torch.sqrt(train_loss).cpu().detach().numpy(), torch.sqrt(test_loss).cpu().detach().numpy(), reg_.cpu().detach().numpy()))
-                    pbar.set_description("Epoch: {}/{} | train loss: {:.2e} | test loss: {:.2e} | best test loss: {:.2e} | reg: {:.2e}".format(_, steps, train_loss.cpu().detach().numpy(), test_loss.cpu().detach().numpy(), min(best_test_loss, test_loss),reg_.cpu().detach().numpy()))
+                    pbar.set_description("Epoch: {}/{} | train loss: {:.2e} | val loss: {:.2e} | best val loss: {:.2e} | reg: {:.2e}".format(_, steps, train_loss.cpu().detach().numpy(), val_loss.cpu().detach().numpy(), min(best_val_loss, val_loss), reg_.cpu().detach().numpy()))
                 if metrics != None:
                     for i in range(len(metrics)):
                         results[metrics[i].__name__].append(metrics[i]().item())
                 results['train_loss'].append(torch.sqrt(train_loss).cpu().detach().numpy())
-                results['test_loss'].append(torch.sqrt(test_loss).cpu().detach().numpy())
+                results['val_loss'].append(torch.sqrt(val_loss).cpu().detach().numpy())
                 results['reg'].append(reg_.cpu().detach().numpy())
 
-                # ADDED EARLY STOPPING
+                # Early stopping using validation data
                 if early_stopping_metric == 'loss':
-                    metric = test_loss
-                    best_metric = best_test_loss
+                    metric = val_loss
+                    best_metric = best_val_loss
                     is_better = metric < best_metric
-                elif early_stopping_metric == 'accuracy':     
-                    metric = accuracy_score(dataset['test_label'][test_id].to(device).detach().numpy(), torch.round(self.forward(dataset['test_input'][test_id].to(device))).cpu().detach().numpy())
-                    best_metric = best_test_accuracy
+                elif early_stopping_metric == 'accuracy':
+                    metric = accuracy_score(dataset['val_label'][val_id].to(device).detach().numpy(), torch.round(self.forward(dataset['val_input'][val_id].to(device))).cpu().detach().numpy())
+                    best_metric = best_val_accuracy
                     is_better = metric > best_metric
-                    best_test_loss = min(best_test_loss, test_loss)
+                    best_val_loss = min(best_val_loss, val_loss)
                 else:
                     raise ValueError("Invalid early_stopping_metric. Choose 'loss' or 'accuracy'.")
-                
+
                 if is_better:
                     if early_stopping_metric == 'loss':
-                        best_test_loss = metric
+                        best_val_loss = metric
                     elif early_stopping_metric == 'accuracy':
-                        best_test_accuracy = metric
+                        best_val_accuracy = metric
                     self.save_ckpt('best_model')
                     patience_counter = 0
                 else:
@@ -1405,7 +1405,7 @@ class KAN(nn.Module):
         '''
         plt.figure(figsize=(10, 5))
         plt.plot(self.results['train_loss'], label='train loss')
-        plt.plot(self.results['test_loss'], label='test loss')
+        plt.plot(self.results['val_loss'], label='val loss')
         plt.plot(self.results['reg'], label='reg')
         if metrics != None:
             for i in range(len(metrics)):
@@ -1514,6 +1514,7 @@ class KAN(nn.Module):
             None
         '''
         self.act_fun[l - 1].mask[i * self.width[l - 1] + torch.arange(self.width[l - 1])] = 0.
+       
         self.act_fun[l].mask[torch.arange(self.width[l + 1]) * self.width[l] + i] = 0.
         self.symbolic_fun[l - 1].mask[i, :] *= 0.
         self.symbolic_fun[l].mask[:, i] *= 0.
@@ -1542,6 +1543,7 @@ class KAN(nn.Module):
             
         Example
         -------
+       
         >>> model = KAN(width=[2,5,1], grid=5, k=3, noise_scale=0.1, seed=0)
         >>> f = lambda x: torch.exp(torch.sin(torch.pi*x[:,[0]]) + x[:,[1]]**2)
         >>> dataset = create_dataset(f, n_var=2)

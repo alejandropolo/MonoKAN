@@ -1349,7 +1349,7 @@ class KAN(nn.Module):
                     best_metric = best_val_loss
                     is_better = metric < best_metric
                 elif early_stopping_metric == 'accuracy':
-                    metric = accuracy_score(dataset['val_label'][val_id].to(device).detach().numpy(), torch.round(self.forward(dataset['val_input'][val_id].to(device))).cpu().detach().numpy())
+                    metric = accuracy_score(dataset['val_label'][val_id].to(device).cpu().detach().numpy(), torch.round(self.forward(dataset['val_input'][val_id].to(device))).cpu().detach().numpy())
                     best_metric = best_val_accuracy
                     is_better = metric > best_metric
                     best_val_loss = min(best_val_loss, val_loss)

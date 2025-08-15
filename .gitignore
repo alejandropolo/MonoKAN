@@ -1,4 +1,4 @@
-*.pt
+
 *.pyc
 
 ## Discar everythin from Data folder but the files that are inside the folder Processed_Data
@@ -23,3 +23,5 @@ Notebooks/data/
 grid_search*.csv
 
 /Notebooks/Notebooks_Trial/*
+
+
